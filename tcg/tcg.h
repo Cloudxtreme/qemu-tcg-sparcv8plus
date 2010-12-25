@@ -156,6 +156,7 @@ typedef struct
     ({ TCGv_i64 make_tcgv_tmp = {i}; make_tcgv_tmp;})
 #define GET_TCGV_I32(t) ((t).i32)
 #define GET_TCGV_I64(t) ((t).i64)
+#define GET_TCGV(t) ((t).i32)
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
 #define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
@@ -169,6 +170,7 @@ typedef int TCGv_i64;
 #define MAKE_TCGV_I64(x) (x)
 #define GET_TCGV_I32(t) (t)
 #define GET_TCGV_I64(t) (t)
+#define GET_TCGV(t) (t)
 
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) (t)

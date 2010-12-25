@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "tcg.h"
+#include "trace.h"
 
 int gen_new_label(void);
 
@@ -173,6 +174,12 @@ static inline void tcg_gen_op4_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
 static inline void tcg_gen_op4i_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                     TCGv_i32 arg3, TCGArg arg4)
 {
+  trace_tcg_gen_op4i_i32(opc, GET_TCGV_I32(arg1), GET_TCGV_I32(arg2), 
+			   GET_TCGV_I32(arg3), arg4);
+  qemu_log("tcg_gen_op4i_i32(%d, %d, %d, %d, %d)\n",
+	   opc, GET_TCGV_I32(arg1), GET_TCGV_I32(arg2), 
+	   GET_TCGV_I32(arg3), arg4);
+
     *gen_opc_ptr++ = opc;
     *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
     *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
@@ -235,6 +242,12 @@ static inline void tcg_gen_op5_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
 static inline void tcg_gen_op5i_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                     TCGv_i32 arg3, TCGv_i32 arg4, TCGArg arg5)
 {
+    trace_tcg_gen_op5i_i32(opc, GET_TCGV_I32(arg1), GET_TCGV_I32(arg2), GET_TCGV_I32(arg3), 
+			   GET_TCGV_I32(arg4), arg5);
+    qemu_log("tcg_gen_op5i_i32(%d, %d, %d, %d, %d, %d)\n",
+	     opc, GET_TCGV_I32(arg1), GET_TCGV_I32(arg2), GET_TCGV_I32(arg3), 
+	     GET_TCGV_I32(arg4), arg5);
+
     *gen_opc_ptr++ = opc;
     *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
     *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
@@ -2233,10 +2246,16 @@ static inline void tcg_gen_qemu_st32(TCGv arg, TCGv addr, int mem_index)
 
 static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 {
+    trace_tcg_gen_qemu_st64(GET_TCGV_I64(arg), GET_TCGV(addr), mem_index);
+
+    qemu_log("tcg_gen_qemu_st64(%d, %d, %d)\n", 
+	    GET_TCGV_I64(arg), GET_TCGV(addr), mem_index);
 #if TARGET_LONG_BITS == 32
+  /* tcg=32 target=32 */
     tcg_gen_op4i_i32(INDEX_op_qemu_st64, TCGV_LOW(arg), TCGV_HIGH(arg), addr,
                      mem_index);
 #else
+  /* tcg=32 target=64 */
     tcg_gen_op5i_i32(INDEX_op_qemu_st64, TCGV_LOW(arg), TCGV_HIGH(arg),
                      TCGV_LOW(addr), TCGV_HIGH(addr), mem_index);
 #endif
@@ -2307,6 +2326,7 @@ static inline void tcg_gen_qemu_st32(TCGv arg, TCGv addr, int mem_index)
 
 static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 {
+  /* tcg=64 target=??(32/64) */
     tcg_gen_qemu_ldst_op_i64(INDEX_op_qemu_st64, arg, addr, mem_index);
 }
 

@@ -4538,7 +4538,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         goto illegal_insn;
                     else {
                         TCGv_i32 r_const;
-
+			qemu_log("std(rd=%d)\n", rd);
                         save_state(dc, cpu_cond);
                         gen_address_mask(dc, cpu_addr);
                         r_const = tcg_const_i32(7);

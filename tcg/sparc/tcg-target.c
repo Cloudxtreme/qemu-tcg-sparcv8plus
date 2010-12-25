@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "trace.h"
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%g0",
@@ -963,9 +965,13 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     uint32_t *label1_ptr, *label2_ptr;
 #endif
 
+
     data_reg = *args++;
     addr_reg = *args++;
     mem_index = *args;
+
+    qemu_log("tcg_out_st(%p, %p, %d)  data_reg=%d  addr_reg=%d  mem_index=%d\n", 
+	     s, args, opc, data_reg, addr_reg, mem_index);
 
     s_bits = opc;
 
@@ -1093,6 +1099,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
         break;
     case 3:
+      /* FIXME check paa TCG_TARGET_REG_BITS == 32/64 */
 #ifdef TARGET_WORDS_BIGENDIAN
         /* stx data_reg, [arg0] */
         tcg_out_ldst(s, data_reg, arg0, 0, STX);
@@ -1117,6 +1124,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                               const int *const_args)
 {
     int c;
+
+    trace_tcg_out_op(s, opc, args, const_args);
+    qemu_log("tcg_out_op(%p, %d, %p, %p)\n", s, opc, args, const_args);
 
     switch (opc) {
     case INDEX_op_exit_tb:
@@ -1408,7 +1418,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_qemu_st64:
         tcg_out_qemu_st(s, args, 3);
         break;
-
+#else
+    case INDEX_op_qemu_st64:
+        tcg_out_qemu_st(s, args, 3); /*3 or 4 ? FIXME */
+        break;
 #endif
     gen_arith:
         tcg_out_arithc(s, args[0], args[1], args[2], const_args[2], c);
@@ -1529,7 +1542,16 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_brcond_i64, { "r", "rJ" } },
     { INDEX_op_setcond_i64, { "r", "r", "rJ" } },
-#endif
+#elif TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
+    /* e.g 32 <= 32 */
+    { INDEX_op_qemu_ld64, { "L", "L", "L" } },
+    { INDEX_op_qemu_st64, { "L", "L", "L" } },
+#else
+#error unsure about this...
+    /* e.g 64 > 32 */
+    { INDEX_op_qemu_ld64, { "L", "L", "L", "L" } },
+    { INDEX_op_qemu_st64, { "L", "L", "L", "L" } },
+ #endif
     { -1 },
 };
 
