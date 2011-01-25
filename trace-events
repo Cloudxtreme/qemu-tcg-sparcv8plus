@@ -190,12 +190,23 @@ disable sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "g
 disable sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 disable sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
-#tcg/sparc/tcg-target.c
+# tcg/sparc/tcg-target.c
 tcg_out_op(void *s, int opc, void *args, void *const_args) "SPARC TCG out op  s=%p  opc=%d  args=%p  const_args=%p"
 # tcg/tcg-op.h
 tcg_gen_op4i_i32(int opc, int arg1, int arg2, int arg3, uint32_t arg4) "TCG gen op4i i32  opc=%x  arg1=%x  arg2=%x arg3=%x"
 tcg_gen_op5i_i32(int opc, int arg1, int arg2, int arg3, int arg4, uint32_t arg5) "TCG gen op5i i32  opc=%x  arg1=%x  arg2=%x  arg3=%x argv=%x"
 tcg_gen_qemu_st64(int arg, int addr, int mem_index) "TCG gen qemu st64  arg=%d addr=%d  mem_index=%d"
+
+# hw/usb-desc.c
+disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
+disable usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
+disable usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
+disable usb_desc_other_speed_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
+disable usb_desc_string(int addr, int index, int len, int ret) "dev %d query string %d, len %d, ret %d"
+disable usb_set_addr(int addr) "dev %d"
+disable usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
+disable usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
+disable usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
 # vl.c
 disable vm_state_notify(int running, int reason) "running %d reason %d"
