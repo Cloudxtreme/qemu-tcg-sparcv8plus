@@ -37,6 +37,16 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 
+#define VMSTOP_USER      0
+#define VMSTOP_DEBUG     1
+#define VMSTOP_SHUTDOWN  2
+#define VMSTOP_DISKFULL  3
+#define VMSTOP_WATCHDOG  4
+#define VMSTOP_PANIC     5
+#define VMSTOP_SAVEVM    6
+#define VMSTOP_LOADVM    7
+#define VMSTOP_MIGRATE   8
+
 void vm_start(void);
 void vm_stop(int reason);
 
@@ -51,6 +61,8 @@ void cpu_disable_ticks(void);
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
+void qemu_system_debug_request(void);
+void qemu_system_vmstop_request(int reason);
 int qemu_shutdown_requested(void);
 int qemu_reset_requested(void);
 int qemu_powerdown_requested(void);
@@ -177,21 +189,6 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
-
-#ifdef HAS_AUDIO
-struct soundhw {
-    const char *name;
-    const char *descr;
-    int enabled;
-    int isa;
-    union {
-        int (*init_isa) (qemu_irq *pic);
-        int (*init_pci) (PCIBus *bus);
-    } init;
-};
-
-extern struct soundhw soundhw[];
-#endif
 
 void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);

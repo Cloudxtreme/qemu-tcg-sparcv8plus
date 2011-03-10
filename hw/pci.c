@@ -641,7 +641,6 @@ static void pci_init_wmask_bridge(PCIDevice *d)
                  PCI_BRIDGE_CTL_FAST_BACK |
                  PCI_BRIDGE_CTL_DISCARD |
                  PCI_BRIDGE_CTL_SEC_DISCARD |
-                 PCI_BRIDGE_CTL_DISCARD_STATUS |
                  PCI_BRIDGE_CTL_DISCARD_SERR);
     /* Below does not do anything as we never set this bit, put here for
      * completeness. */
@@ -833,6 +832,7 @@ static int pci_unregister_device(DeviceState *dev)
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
+    qemu_free(pci_dev->romfile);
     do_pci_unregister_device(pci_dev);
     return 0;
 }
@@ -1708,6 +1708,21 @@ PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
     return DO_UPCAST(PCIDevice, qdev, dev);
 }
 
+PCIDevice *pci_try_create_multifunction(PCIBus *bus, int devfn,
+                                        bool multifunction,
+                                        const char *name)
+{
+    DeviceState *dev;
+
+    dev = qdev_try_create(&bus->qbus, name);
+    if (!dev) {
+        return NULL;
+    }
+    qdev_prop_set_uint32(dev, "addr", devfn);
+    qdev_prop_set_bit(dev, "multifunction", multifunction);
+    return DO_UPCAST(PCIDevice, qdev, dev);
+}
+
 PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
                                            bool multifunction,
                                            const char *name)
@@ -1725,6 +1740,11 @@ PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name)
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 {
     return pci_create_simple_multifunction(bus, devfn, false, name);
+}
+
+PCIDevice *pci_try_create(PCIBus *bus, int devfn, const char *name)
+{
+    return pci_try_create_multifunction(bus, devfn, false, name);
 }
 
 static int pci_find_space(PCIDevice *pdev, uint8_t size)
@@ -1855,6 +1875,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     if (size < 0) {
         error_report("%s: failed to find romfile \"%s\"",
                      __FUNCTION__, pdev->romfile);
+        qemu_free(path);
         return -1;
     }
     if (size & (size - 1)) {
@@ -2072,7 +2093,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     for (t = d; t; t = t->bus->parent_dev) {
         p -= slot_len;
         s = snprintf(slot, sizeof slot, ":%02x.%x",
-                     PCI_SLOT(t->devfn), PCI_FUNC(d->devfn));
+                     PCI_SLOT(t->devfn), PCI_FUNC(t->devfn));
         assert(s == slot_len);
         memcpy(p, slot, slot_len);
     }

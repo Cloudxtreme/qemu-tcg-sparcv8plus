@@ -37,6 +37,10 @@
     do { } while (0)
 #endif
 
+const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
+    KVM_CAP_LAST_INFO
+};
+
 static int cap_interrupt_unset = false;
 static int cap_interrupt_level = false;
 
@@ -56,7 +60,7 @@ static void kvm_kick_env(void *env)
     qemu_cpu_kick(env);
 }
 
-int kvm_arch_init(KVMState *s, int smp_cpus)
+int kvm_arch_init(KVMState *s)
 {
 #ifdef KVM_CAP_PPC_UNSET_IRQ
     cap_interrupt_unset = kvm_check_extension(s, KVM_CAP_PPC_UNSET_IRQ);
@@ -252,14 +256,12 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     return 0;
 }
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
-    return 0;
 }
 
-int kvm_arch_process_irqchip_events(CPUState *env)
+void kvm_arch_process_irqchip_events(CPUState *env)
 {
-    return 0;
 }
 
 static int kvmppc_handle_halt(CPUState *env)
@@ -306,6 +308,10 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
     case KVM_EXIT_HLT:
         dprintf("handle halt\n");
         ret = kvmppc_handle_halt(env);
+        break;
+    default:
+        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+        ret = -1;
         break;
     }
 
@@ -395,4 +401,14 @@ int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
     return true;
+}
+
+int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return 1;
+}
+
+int kvm_arch_on_sigbus(int code, void *addr)
+{
+    return 1;
 }

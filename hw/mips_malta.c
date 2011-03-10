@@ -37,7 +37,7 @@
 #include "vmware_vga.h"
 #include "qemu-char.h"
 #include "sysemu.h"
-#include "audio/audio.h"
+#include "arch_init.h"
 #include "boards.h"
 #include "qemu-log.h"
 #include "mips-bios.h"
@@ -68,7 +68,7 @@ typedef struct {
     SerialState *uart;
 } MaltaFPGAState;
 
-static PITState *pit;
+static ISADevice *pit;
 
 static struct _loaderparams {
     int ram_size;
@@ -455,25 +455,6 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_ir
     qemu_register_reset(malta_fpga_reset, s);
 
     return s;
-}
-
-/* Audio support */
-static void audio_init (PCIBus *pci_bus)
-{
-    struct soundhw *c;
-    int audio_enabled = 0;
-
-    for (c = soundhw; !audio_enabled && c->name; ++c) {
-        audio_enabled = c->enabled;
-    }
-
-    if (audio_enabled) {
-        for (c = soundhw; c->name; ++c) {
-            if (c->enabled) {
-                c->init.init_pci(pci_bus);
-            }
-        }
-    }
 }
 
 /* Network support */
@@ -938,7 +919,7 @@ void mips_malta_init (ram_addr_t ram_size,
     isa_bus_irqs(i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
-    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_reserve_irq(9),
+    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_get_irq(9),
                           NULL, NULL, 0);
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
     for (i = 0; i < 8; i++) {
@@ -949,7 +930,7 @@ void mips_malta_init (ram_addr_t ram_size,
         qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
         qdev_init_nofail(eeprom);
     }
-    pit = pit_init(0x40, isa_reserve_irq(0));
+    pit = pit_init(0x40, 0);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 
@@ -967,7 +948,7 @@ void mips_malta_init (ram_addr_t ram_size,
     fdctrl_init_isa(fd);
 
     /* Sound card */
-    audio_init(pci_bus);
+    audio_init(NULL, pci_bus);
 
     /* Network card */
     network_init();
@@ -976,7 +957,11 @@ void mips_malta_init (ram_addr_t ram_size,
     if (cirrus_vga_enabled) {
         pci_cirrus_vga_init(pci_bus);
     } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus);
+        if (!pci_vmsvga_init(pci_bus)) {
+            fprintf(stderr, "Warning: vmware_vga not available,"
+                    " using standard VGA instead\n");
+            pci_vga_init(pci_bus);
+        }
     } else if (std_vga_enabled) {
         pci_vga_init(pci_bus);
     }

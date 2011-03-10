@@ -20,11 +20,11 @@ typedef struct VirtConsole {
 
 
 /* Callback function that's called when the guest sends us data */
-static void flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
+static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
-    qemu_chr_write(vcon->chr, buf, len);
+    return qemu_chr_write(vcon->chr, buf, len);
 }
 
 /* Readiness of the guest to accept data on a port */
@@ -48,37 +48,36 @@ static void chr_event(void *opaque, int event)
     VirtConsole *vcon = opaque;
 
     switch (event) {
-    case CHR_EVENT_OPENED: {
+    case CHR_EVENT_OPENED:
         virtio_serial_open(&vcon->port);
         break;
-    }
     case CHR_EVENT_CLOSED:
         virtio_serial_close(&vcon->port);
         break;
     }
 }
 
-/* Virtio Console Ports */
-static int virtconsole_initfn(VirtIOSerialDevice *dev)
+static int generic_port_init(VirtConsole *vcon, VirtIOSerialPort *port)
 {
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
-    VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
-
-    port->info = dev->info;
-
-    port->is_console = true;
-
     if (vcon->chr) {
         qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
                               vcon);
-        port->info->have_data = flush_buf;
+        vcon->port.info->have_data = flush_buf;
     }
     return 0;
 }
 
-static int virtconsole_exitfn(VirtIOSerialDevice *dev)
+/* Virtio Console Ports */
+static int virtconsole_initfn(VirtIOSerialPort *port)
 {
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
+    VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
+
+    port->is_console = true;
+    return generic_port_init(vcon, port);
+}
+
+static int virtconsole_exitfn(VirtIOSerialPort *port)
+{
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
     if (vcon->chr) {
@@ -110,19 +109,11 @@ static void virtconsole_register(void)
 device_init(virtconsole_register)
 
 /* Generic Virtio Serial Ports */
-static int virtserialport_initfn(VirtIOSerialDevice *dev)
+static int virtserialport_initfn(VirtIOSerialPort *port)
 {
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
-    port->info = dev->info;
-
-    if (vcon->chr) {
-        qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
-                              vcon);
-        port->info->have_data = flush_buf;
-    }
-    return 0;
+    return generic_port_init(vcon, port);
 }
 
 static VirtIOSerialPortInfo virtserialport_info = {

@@ -765,6 +765,8 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 CPUState *cpu_copy(CPUState *env);
 CPUState *qemu_get_cpu(int cpu);
 
+#define CPU_DUMP_CODE 0x00010000
+
 void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags);
 void cpu_dump_statistics(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
@@ -957,6 +959,12 @@ int cpu_physical_memory_get_dirty_tracking(void);
 int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
                                    target_phys_addr_t end_addr);
 
+int cpu_physical_log_start(target_phys_addr_t start_addr,
+                           ram_addr_t size);
+
+int cpu_physical_log_stop(target_phys_addr_t start_addr,
+                          ram_addr_t size);
+
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 #endif /* !CONFIG_USER_ONLY */
 
@@ -964,6 +972,7 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
 void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
-                        uint64_t mcg_status, uint64_t addr, uint64_t misc);
+                        uint64_t mcg_status, uint64_t addr, uint64_t misc,
+                        int broadcast);
 
 #endif /* CPU_ALL_H */

@@ -79,7 +79,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     VirtIONet *n = to_virtio_net(vdev);
     struct virtio_net_config netcfg;
 
-    netcfg.status = n->status;
+    stw_p(&netcfg.status, n->status);
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, sizeof(netcfg));
 }
@@ -115,11 +115,16 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
     if (!tap_get_vhost_net(n->nic->nc.peer)) {
         return;
     }
-    if (!!n->vhost_started == virtio_net_started(n, status)) {
+    if (!!n->vhost_started == virtio_net_started(n, status) &&
+                              !n->nic->nc.peer->link_down) {
         return;
     }
     if (!n->vhost_started) {
-        int r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
+        int r;
+        if (!vhost_net_query(tap_get_vhost_net(n->nic->nc.peer), &n->vdev)) {
+            return;
+        }
+        r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
         if (r < 0) {
             error_report("unable to start vhost net: %d: "
                          "falling back on userspace virtio", -r);
@@ -338,7 +343,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
     n->mac_table.multi_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
 
-    mac_data.entries = ldl_le_p(elem->out_sg[1].iov_base);
+    mac_data.entries = ldl_p(elem->out_sg[1].iov_base);
 
     if (sizeof(mac_data.entries) +
         (mac_data.entries * ETH_ALEN) > elem->out_sg[1].iov_len)
@@ -354,7 +359,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
 
     n->mac_table.first_multi = n->mac_table.in_use;
 
-    mac_data.entries = ldl_le_p(elem->out_sg[2].iov_base);
+    mac_data.entries = ldl_p(elem->out_sg[2].iov_base);
 
     if (sizeof(mac_data.entries) +
         (mac_data.entries * ETH_ALEN) > elem->out_sg[2].iov_len)
@@ -384,7 +389,7 @@ static int virtio_net_handle_vlan_table(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
     }
 
-    vid = lduw_le_p(elem->out_sg[1].iov_base);
+    vid = lduw_p(elem->out_sg[1].iov_base);
 
     if (vid >= MAX_VLAN)
         return VIRTIO_NET_ERR;
@@ -673,8 +678,9 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
         virtqueue_fill(n->rx_vq, &elem, total, i++);
     }
 
-    if (mhdr)
-        mhdr->num_buffers = i;
+    if (mhdr) {
+        stw_p(&mhdr->num_buffers, i);
+    }
 
     virtqueue_flush(n->rx_vq, i);
     virtio_notify(&n->vdev, n->rx_vq);

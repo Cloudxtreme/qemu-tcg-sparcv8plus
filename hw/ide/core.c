@@ -465,7 +465,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
         s->bus->dma->ops->add_status(s->bus->dma, op);
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(0);
+        vm_stop(VMSTOP_DISKFULL);
     } else {
         if (op & BM_STATUS_DMA_RETRY) {
             dma_buf_commit(s, 0);
@@ -1584,10 +1584,14 @@ static void ide_cfata_metadata_write(IDEState *s)
 }
 
 /* called when the inserted state of the media has changed */
-static void cdrom_change_cb(void *opaque)
+static void cdrom_change_cb(void *opaque, int reason)
 {
     IDEState *s = opaque;
     uint64_t nb_sectors;
+
+    if (!(reason & CHANGE_MEDIA)) {
+        return;
+    }
 
     bdrv_get_geometry(s->bs, &nb_sectors);
     s->nb_sectors = nb_sectors;

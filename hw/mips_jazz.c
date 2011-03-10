@@ -29,7 +29,7 @@
 #include "isa.h"
 #include "fdc.h"
 #include "sysemu.h"
-#include "audio/audio.h"
+#include "arch_init.h"
 #include "boards.h"
 #include "net.h"
 #include "esp.h"
@@ -90,26 +90,6 @@ static CPUWriteMemoryFunc * const dma_dummy_write[3] = {
     dma_dummy_writeb,
 };
 
-static void audio_init(qemu_irq *pic)
-{
-    struct soundhw *c;
-    int audio_enabled = 0;
-
-    for (c = soundhw; !audio_enabled && c->name; ++c) {
-        audio_enabled = c->enabled;
-    }
-
-    if (audio_enabled) {
-        for (c = soundhw; c->name; ++c) {
-            if (c->enabled) {
-                if (c->isa) {
-                    c->init.init_isa(pic);
-                }
-            }
-        }
-    }
-}
-
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
@@ -135,7 +115,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     void* rc4030_opaque;
     int s_rtc, s_dma_dummy;
     NICInfo *nd;
-    PITState *pit;
+    ISADevice *pit;
     DriveInfo *fds[MAX_FD];
     qemu_irq esp_reset, dma_enable;
     qemu_irq *cpu_exit_irq;
@@ -201,7 +181,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     isa_bus_irqs(i8259);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
-    pit = pit_init(0x40, i8259[0]);
+    pit = pit_init(0x40, 0);
     pcspk_init(pit);
 
     /* ISA IO space at 0x90000000 */
@@ -284,7 +264,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
-    audio_init(i8259);
+    audio_init(i8259, NULL);
 
     /* NVRAM: Unprotected at 0x9000, Protected at 0xa000, Read only at 0xb000 */
     ds1225y_init(0x80009000, "nvram");

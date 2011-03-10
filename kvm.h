@@ -32,9 +32,17 @@ extern int kvm_allowed;
 
 struct kvm_run;
 
+typedef struct KVMCapabilityInfo {
+    const char *name;
+    int value;
+} KVMCapabilityInfo;
+
+#define KVM_CAP_INFO(CAP) { "KVM_CAP_" stringify(CAP), KVM_CAP_##CAP }
+#define KVM_CAP_LAST_INFO { NULL, 0 }
+
 /* external API */
 
-int kvm_init(int smp_cpus);
+int kvm_init(void);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
@@ -50,9 +58,6 @@ int kvm_init_vcpu(CPUState *env);
 int kvm_cpu_exec(CPUState *env);
 
 #if !defined(CONFIG_USER_ONLY)
-int kvm_log_start(target_phys_addr_t phys_addr, ram_addr_t size);
-int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size);
-
 void kvm_setup_guest_memory(void *start, size_t size);
 
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
@@ -73,10 +78,14 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset);
 int kvm_pit_in_kernel(void);
 int kvm_irqchip_in_kernel(void);
 
+int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr);
+int kvm_on_sigbus(int code, void *addr);
+
 /* internal API */
 
 struct KVMState;
 typedef struct KVMState KVMState;
+extern KVMState *kvm_state;
 
 int kvm_ioctl(KVMState *s, int type, ...);
 
@@ -86,11 +95,12 @@ int kvm_vcpu_ioctl(CPUState *env, int type, ...);
 
 /* Arch specific hooks */
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run);
+extern const KVMCapabilityInfo kvm_arch_required_capabilities[];
+
+void kvm_arch_pre_run(CPUState *env, struct kvm_run *run);
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run);
 
 int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run);
-
-int kvm_arch_pre_run(CPUState *env, struct kvm_run *run);
 
 int kvm_arch_process_irqchip_events(CPUState *env);
 
@@ -105,14 +115,14 @@ int kvm_arch_get_registers(CPUState *env);
 
 int kvm_arch_put_registers(CPUState *env, int level);
 
-int kvm_arch_init(KVMState *s, int smp_cpus);
+int kvm_arch_init(KVMState *s);
 
 int kvm_arch_init_vcpu(CPUState *env);
 
 void kvm_arch_reset_vcpu(CPUState *env);
 
-int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr);
-int kvm_on_sigbus(int code, void *addr);
+int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr);
+int kvm_arch_on_sigbus(int code, void *addr);
 
 struct kvm_guest_debug;
 struct kvm_debug_exit_arch;
